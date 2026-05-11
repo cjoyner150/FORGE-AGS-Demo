@@ -1878,7 +1878,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7673238159185231810, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -265
+      value: -425
       objectReference: {fileID: 0}
     - target: {fileID: 7673238159185231810, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -2343,7 +2343,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 110.57}
-  m_SizeDelta: {x: 1024, y: 819.2}
+  m_SizeDelta: {x: 1379.4, y: 776.325}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &847342395
 MonoBehaviour:
@@ -2365,7 +2365,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8308448fc2054c84086f6af129da166b, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 6ddda5472f5c5144aa8e052b898ca7ec, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2569,6 +2569,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 7673238159185231810, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
   m_PrefabInstance: {fileID: 907013964}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &907013966 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4636479064678984130, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
+  m_PrefabInstance: {fileID: 907013964}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a7f057920a0dfb4ebd424a4acc42bee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FORGE.ReelDisplay
 --- !u!1 &925415986
 GameObject:
   m_ObjectHideFlags: 0
@@ -3237,6 +3248,17 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1244371990}
   m_CullTransparentMesh: 1
+--- !u!114 &1351318261 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4636479064678984130, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
+  m_PrefabInstance: {fileID: 5426222550403099581}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a7f057920a0dfb4ebd424a4acc42bee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FORGE.ReelDisplay
 --- !u!1 &1458898470
 GameObject:
   m_ObjectHideFlags: 0
@@ -3272,6 +3294,10 @@ MonoBehaviour:
   - {fileID: 1486477253}
   - {fileID: 76914712}
   - {fileID: 925415988}
+  reelDisplays:
+  - {fileID: 1351318261}
+  - {fileID: 907013966}
+  - {fileID: 1823437587}
   winDisplay: {fileID: 1617348471}
   creditDisplay: {fileID: 969102452}
   startingCredits: 100
@@ -3591,10 +3617,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 847342394}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.5}
-  m_AnchorMax: {x: 1, y: 0.5}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 4}
+  m_SizeDelta: {x: 939.2, y: 54.11408}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1576646273
 MonoBehaviour:
@@ -3609,14 +3635,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.34901962}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.09019608}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 796b1acda22d4964880b0980e38bc6f0, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3648,7 +3674,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FORGE.PaylineHighlight
   gameManager: {fileID: 1458898471}
   line: {fileID: 1576646273}
-  baseColor: {r: 1, g: 1, b: 1, a: 0.35}
+  baseColor: {r: 1, g: 1, b: 1, a: 0.2627451}
   winColor: {r: 1, g: 0.85, b: 0.3, a: 1}
   flashDuration: 0.15
   fadeDuration: 0.8
@@ -3926,6 +3952,17 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1749283451}
   m_CullTransparentMesh: 1
+--- !u!114 &1823437587 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4636479064678984130, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
+  m_PrefabInstance: {fileID: 577244410}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a7f057920a0dfb4ebd424a4acc42bee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FORGE.ReelDisplay
 --- !u!1 &1827129503
 GameObject:
   m_ObjectHideFlags: 0
@@ -4660,7 +4697,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7673238159185231810, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 265
+      value: 425
       objectReference: {fileID: 0}
     - target: {fileID: 7673238159185231810, guid: 769724db3b9c4d440bda26c6d877a365, type: 3}
       propertyPath: m_AnchoredPosition.y

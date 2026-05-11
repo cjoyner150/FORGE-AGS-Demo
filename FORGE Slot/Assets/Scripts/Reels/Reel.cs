@@ -20,14 +20,13 @@ namespace FORGE
         [SerializeField] private float symbolHeight = 120f;
 
         private ReelStripData _activeStrip;
-        private bool _isSpinning;
 
         public float SpinProgress { get; private set; }
         public float DecelDuration => decelDuration;
         public bool HasTarget { get; private set; }
         public int TargetStopIndex { get; private set; }
         public int LandedStopIndex { get; private set; }
-        public bool IsSpinning => _isSpinning;
+        public bool IsSpinning { get; private set; }
         public int StopCount => _activeStrip != null ? _activeStrip.StopCount : 22;
 
         public event Action<Reel> OnLanded;
@@ -43,35 +42,39 @@ namespace FORGE
 
         public void SetStrip(bool isSurge)
         {
-            if (_isSpinning) return;
+            if (IsSpinning) return;
             _activeStrip = isSurge ? surgeStrip : normalStrip;
         }
 
         public void Spin(int targetStop)
         {
             StopAllCoroutines();
+
+            // Set IsSpinning synchronously so ReelDisplay.LateUpdate sees it
+            // on the same frame Spin() is called, before the coroutine runs.
+            IsSpinning   = true;
+            SpinProgress = 0f;
+            HasTarget    = false;
+
             StartCoroutine(SpinCoroutine(targetStop));
         }
 
         /// <summary>
         /// Called by ReelDisplay when its Hermite decel curve reaches t=1.
-        /// ReelDisplay owns the decel timing -- this fires OnLanded so other
-        /// systems (audio, UI) can react to the reel stopping.
+        /// ReelDisplay owns decel timing. This fires OnLanded for all listeners
+        /// (audio, UI, GameManager land counter, etc).
         /// </summary>
         public void NotifyDisplayLanded()
         {
             LandedStopIndex = TargetStopIndex;
-            _isSpinning     = false;
+            IsSpinning      = false;
             HasTarget       = false;
             OnLanded?.Invoke(this);
         }
 
         private IEnumerator SpinCoroutine(int targetStop)
         {
-            _isSpinning  = true;
-            SpinProgress = 0f;
-            HasTarget    = false;
-
+            // IsSpinning already true -- set synchronously in Spin()
             if (startDelay > 0f)
                 yield return new WaitForSeconds(startDelay);
 
@@ -91,7 +94,7 @@ namespace FORGE
             HasTarget       = true;
 
             // Wait for ReelDisplay to call NotifyDisplayLanded()
-            while (_isSpinning)
+            while (IsSpinning)
                 yield return null;
         }
     }
