@@ -4,133 +4,104 @@ using UnityEngine;
 
 namespace FORGE
 {
-    /// <summary>
-    /// One physical reel. Owns its strip reference, the spin coroutine,
-    /// and the final landed stop index.
-    ///
-    /// ReelDisplay reads LandedStop and VisualOffset to position symbols.
-    /// GameManager calls Spin() and awaits the OnLanded callback.
-    /// </summary>
     public class Reel : MonoBehaviour
     {
-        // ── Inspector ─────────────────────────────────────────────────
         [SerializeField] private ReelStripData normalStrip;
         [SerializeField] private ReelStripData surgeStrip;
 
         [Header("Spin Timing")]
-        [Tooltip("Seconds the reel spins before decelerating.")]
-        [SerializeField] private float spinDuration = 0.6f;
-
-        [Tooltip("Additional delay before this reel starts (stagger between reels).")]
+        [Tooltip("Stagger delay before this reel starts spinning.")]
         [SerializeField] private float startDelay = 0f;
 
-        [Tooltip("Deceleration duration in seconds.")]
-        [SerializeField] private float stopDuration = 0.25f;
+        [Tooltip("How long the reel spins at full speed before decelerating.")]
+        [SerializeField] private float fullSpeedDuration = 0.6f;
 
-        // ── State ─────────────────────────────────────────────────────
+        [Tooltip("How long the deceleration phase lasts.")]
+        [SerializeField] private float decelDuration = 0.4f;
+
+        [Tooltip("Must match ReelDisplay.symbolHeight.")]
+        [SerializeField] private float symbolHeight = 120f;
+
         private ReelStripData _activeStrip;
-        private int _landedStopIndex = -1;
+        private int _landedStopIndex = 0;
         private bool _isSpinning;
 
-        /// <summary>Normalised 0–1 scroll offset, driven by the spin coroutine.
-        /// ReelDisplay uses this to lerp symbol positions.</summary>
-        public float VisualOffset { get; private set; }
+        // 0 = full speed, 1 = fully stopped.
+        // ReelDisplay reads this to scale down its scroll speed.
+        public float SpinProgress { get; private set; }
+        public float DecelDuration => decelDuration;
 
-        /// <summary>The stop index the reel landed on after the last spin.</summary>
+        // The exact _displayScrollPx value ReelDisplay should arrive at
+        // by the end of decel. Set before decel begins so ReelDisplay
+        // can lerp toward it, eliminating the snap.
+        public float TargetScrollPx { get; private set; }
+        public bool HasTarget { get; private set; }
+
         public int LandedStopIndex => _landedStopIndex;
-
-        /// <summary>The symbol at the landed stop.</summary>
-        public SymbolType LandedSymbol => _activeStrip.GetStop(_landedStopIndex);
-
-        /// <summary>
-        /// Returns the symbol at any stop index on the currently active strip.
-        /// GameManager uses this to resolve symbols before animation plays.
-        /// </summary>
-        public SymbolType GetSymbolAt(int stopIndex) => _activeStrip.GetStop(stopIndex);
-
         public bool IsSpinning => _isSpinning;
-
-        /// <summary>Number of stops on the currently active strip.</summary>
         public int StopCount => _activeStrip != null ? _activeStrip.StopCount : 22;
 
-        // ── Events ────────────────────────────────────────────────────
-        /// <summary>Fired when the reel has fully stopped and LandedSymbol is valid.</summary>
         public event Action<Reel> OnLanded;
 
-        // ── Lifecycle ─────────────────────────────────────────────────
         private void Awake()
         {
             _activeStrip = normalStrip;
+            SpinProgress = 0f;
+            HasTarget    = false;
         }
 
-        // ── Public API ────────────────────────────────────────────────
+        public SymbolType GetSymbolAt(int stopIndex) => _activeStrip.GetStop(stopIndex);
 
-        /// <summary>
-        /// Switch to normal or surge strip.
-        /// Safe to call between spins; has no effect while spinning.
-        /// </summary>
         public void SetStrip(bool isSurge)
         {
             if (_isSpinning) return;
             _activeStrip = isSurge ? surgeStrip : normalStrip;
         }
 
-        /// <summary>
-        /// Begin a spin that will land on targetStop.
-        /// The outcome (targetStop) is pre-determined by GameManager before
-        /// any animation plays — the spin is purely presentational.
-        /// </summary>
         public void Spin(int targetStop)
         {
-            // Stop any in-progress spin coroutine before starting a new one.
-            // This ensures Spin() always starts fresh even if called rapidly.
             StopAllCoroutines();
             StartCoroutine(SpinCoroutine(targetStop));
         }
 
-        // ── Internal ─────────────────────────────────────────────────
-
         private IEnumerator SpinCoroutine(int targetStop)
         {
-            _isSpinning = true;
+            _isSpinning  = true;
+            SpinProgress = 0f;
+            HasTarget    = false;
 
-            // Optional stagger delay
             if (startDelay > 0f)
                 yield return new WaitForSeconds(startDelay);
 
+            // Full-speed phase
             float elapsed = 0f;
-            float startOffset = VisualOffset;
-
-            // ── Spin phase: scroll continuously ──────────────────────
-            while (elapsed < spinDuration)
+            while (elapsed < fullSpeedDuration)
             {
-                elapsed    += Time.deltaTime;
-                // Wrap offset 0–1 repeatedly to simulate continuous spin
-                VisualOffset = (startOffset + elapsed * 4f) % 1f;
+                elapsed      += Time.deltaTime;
+                SpinProgress  = 0f;
                 yield return null;
             }
 
-            // ── Deceleration phase: ease into target stop ─────────────
-            float decElapsed = 0f;
-            float fromOffset = VisualOffset;
-            float toOffset = targetStop / (float)_activeStrip.StopCount;
+            // Signal ReelDisplay to compute its target scroll position now,
+            // before decel begins, so it has the full decel window to arrive.
+            // ReelDisplay.ComputeTargetScroll() is called via the property setter.
+            TargetScrollPx = targetStop * symbolHeight;
+            HasTarget      = true;
 
-            // Ensure we always travel forward (never backward)
-            if (toOffset <= fromOffset)
-                toOffset += 1f;
-
-            while (decElapsed < stopDuration)
+            // Deceleration phase
+            elapsed = 0f;
+            while (elapsed < decelDuration)
             {
-                decElapsed   += Time.deltaTime;
-                float t = decElapsed / stopDuration;
-                float ease = 1f - Mathf.Pow(1f - t, 3f); // ease-out cubic
-                VisualOffset  = Mathf.Lerp(fromOffset, toOffset, ease) % 1f;
+                elapsed      += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / decelDuration);
+                SpinProgress  = t * t;  // ease-in: slows toward stop
                 yield return null;
             }
 
-            VisualOffset     = toOffset % 1f;
+            SpinProgress     = 0f;
             _landedStopIndex = targetStop;
             _isSpinning      = false;
+            HasTarget        = false;
 
             OnLanded?.Invoke(this);
         }

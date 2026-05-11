@@ -31,15 +31,26 @@ namespace FORGE
 
         // ── Mutations — called only by GameManager ────────────────────
 
-        public void RecordSpin(float betSize, float payoutMultiplier, bool surgeTriggered)
+        /// <summary>
+        /// Step 1: called immediately when the player clicks Spin.
+        /// Deducts the bet so the credit display updates right away.
+        /// </summary>
+        public void DeductBet(float betSize)
         {
-            float payout  = betSize * payoutMultiplier;
-
             Credits      -= betSize;
-            Credits      += payout;
             TotalWagered += betSize;
-            TotalPaid    += payout;
             SpinCount++;
+        }
+
+        /// <summary>
+        /// Step 2: called after reels resolve.
+        /// Adds the payout and records win/loss stats.
+        /// </summary>
+        public void RecordPayout(float betSize, float payoutMultiplier, bool surgeTriggered)
+        {
+            float payout = betSize * payoutMultiplier;
+            Credits      += payout;
+            TotalPaid    += payout;
 
             bool isWin = payoutMultiplier > 0f;
             if (isWin)
