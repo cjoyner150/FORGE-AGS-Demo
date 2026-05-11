@@ -13,6 +13,11 @@ namespace FORGE
     ///
     /// Symbols are assigned when a slot crosses topY (enters from top).
     /// Between recycles, the symbol is stable.
+    ///
+    /// ReelDisplay owns decel timing. When the Hermite curve finishes,
+    /// it calls reel.NotifyDisplayLanded(), which sets reel state and
+    /// fires Reel.OnLanded for any other listeners (audio, UI, etc).
+    /// ReelDisplay also subscribes to OnLanded itself to run SnapSymbols.
     /// </summary>
     public class ReelDisplay : MonoBehaviour
     {
@@ -28,12 +33,8 @@ namespace FORGE
         private const int SlotCount = 5;
         private const int PaylineSlot = 2;
 
-        // Per-slot phase: the _scrollPx value at which this slot sits at topY.
-        // Position = topY - (_scrollPx - phase) % poolH
         private float[] _phase;
         private int[] _slotStop;
-
-        // Previous Y per slot -- used to detect when a slot crosses topY
         private float[] _prevY;
 
         private float _scrollPx;
@@ -83,14 +84,11 @@ namespace FORGE
             if (reel != null) reel.OnLanded -= OnReelLanded;
         }
 
+        // OnLanded fires after NotifyDisplayLanded(), which we call ourselves
+        // at the end of decel. At that point _scrollPx == _decelEndPx exactly,
+        // so SnapSymbols is a true no-op correction with no visible change.
         private void OnReelLanded(Reel _)
         {
-            // Force scrollPx to exact end -- OnLanded fires before LateUpdate
-            if (_inDecel)
-            {
-                _scrollPx = _decelEndPx;
-                _inDecel  = false;
-            }
             SnapSymbols(reel.LandedStopIndex);
         }
 
@@ -105,12 +103,14 @@ namespace FORGE
                 _decelDuration = reel.DecelDuration;
                 _decelStartPx  = _scrollPx;
 
+                // Compute _decelEndPx purely from geometry using TargetStopIndex.
+                // Find the nearest value past _decelStartPx where targetStop sits
+                // at the payline. Guarantees _decelEndPx % stripH == targetStop * symbolHeight.
                 float stripH = reel.StopCount * symbolHeight;
-                float naturalEnd = _decelStartPx + displaySpinSpeed * _decelDuration / 3f;
-                float targetBase = reel.TargetScrollPx;
+                float targetBase = reel.TargetStopIndex * symbolHeight;
                 float candidate = targetBase
-                    + Mathf.Round((naturalEnd - targetBase) / stripH) * stripH;
-                while (candidate <= _decelStartPx + symbolHeight * 0.5f)
+                    + Mathf.Ceil((_decelStartPx - targetBase) / stripH) * stripH;
+                while (candidate < _decelStartPx + symbolHeight * 0.5f)
                     candidate += stripH;
                 _decelEndPx = candidate;
             }
@@ -121,10 +121,15 @@ namespace FORGE
             {
                 _decelElapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(_decelElapsed / _decelDuration);
+
                 if (t >= 1f)
                 {
                     _scrollPx = _decelEndPx;
                     _inDecel  = false;
+
+                    // ReelDisplay finished decel -- notify Reel so it can update
+                    // its state and fire OnLanded for all listeners.
+                    reel.NotifyDisplayLanded();
                 }
                 else
                 {
@@ -134,7 +139,6 @@ namespace FORGE
                     _scrollPx  = h00 * _decelStartPx
                                 + h10 * displaySpinSpeed * _decelDuration
                                 + h01 * _decelEndPx;
-                    // Never go backward
                     if (_scrollPx < prevScrollPx) _scrollPx = prevScrollPx;
                 }
             }
@@ -147,7 +151,6 @@ namespace FORGE
             Render();
         }
 
-        // Check if any slot crossed topY this frame and assign its new symbol
         private void UpdateSlotSymbols(float prevScrollPx)
         {
             int stripLen = reel.StopCount;
@@ -157,21 +160,12 @@ namespace FORGE
             {
                 float currY = GetSlotY(i);
                 float prevSlotY = _prevY[i];
-                _prevY[i] = currY;
+                _prevY[i]       = currY;
 
-                // Slot crossed topY when going from above to below
-                // (i.e. it wrapped from near _topY back to _topY)
-                // Detect: prev was close to topY from below, curr jumped to near topY from above
-                // More reliably: prev < botY+threshold means it was about to recycle
-                // A slot recycles when raw = (_scrollPx - phase) % poolH wraps from
-                // near poolH back to near 0, causing Y to jump from near _botY to near _topY.
-                // Detect by: prevY was near bottom AND currY is near top.
                 bool justRecycled = prevSlotY < _botY + symbolHeight * 0.5f
                                  && currY     > _topY  - symbolHeight * 0.5f;
                 if (!justRecycled) continue;
 
-                // This slot just appeared at topY. What stop should it show?
-                // Find the slot currently at paylineY (not this one) and offset from it.
                 int paySlot = -1;
                 float bestDist = float.MaxValue;
                 for (int j = 0; j < SlotCount; j++)
@@ -196,16 +190,8 @@ namespace FORGE
             return _topY - raw;
         }
 
-        // After landing, assign correct symbols without moving slots
         private void SnapSymbols(int landedStop)
         {
-            // VERSION: PhaseModel-v1 -- if you see this, the new file is active
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"[{name}] SnapSymbols v1 stop={landedStop} scrollPx={_scrollPx:F2}");
-            for (int i = 0; i < SlotCount; i++)
-                sb.AppendLine($"  slot{i} Y={GetSlotY(i):F2} stop={_slotStop[i]} dist={GetSlotY(i)+symbolHeight:F2}");
-            Debug.Log(sb.ToString());
-
             int stripLen = reel.StopCount;
             float paylineY = -symbolHeight;
 
@@ -226,11 +212,7 @@ namespace FORGE
                 _slotStop[i] = Mod(landedStop + rowOff, stripLen);
             }
 
-            // Recompute phases from scratch -- never accumulate shift errors.
-            // For each slot, phase is the _scrollPx value where that slot is at topY.
-            // GetSlotY(i) = topY - (_scrollPx - phase[i]) % poolH
-            // So: (_scrollPx - phase[i]) % poolH = topY - GetSlotY(i)
-            // Therefore: phase[i] = _scrollPx - (topY - GetSlotY(i))  [mod poolH]
+            // Recompute phases from current positions
             for (int i = 0; i < SlotCount; i++)
             {
                 float currentY = GetSlotY(i);
@@ -238,18 +220,16 @@ namespace FORGE
                 _phase[i]      = ((raw % _poolH) + _poolH) % _poolH;
             }
 
-            // Align _scrollPx to landed stop for next spin
+            // Align _scrollPx to landed stop
             float stripTotalH = stripLen * symbolHeight;
             float targetBase = landedStop * symbolHeight;
             float aligned = targetBase
                 + Mathf.Round((_scrollPx - targetBase) / stripTotalH) * stripTotalH;
-            // Apply the same alignment to phases so positions don't move
             float shift = aligned - _scrollPx;
             _scrollPx     = aligned;
             for (int i = 0; i < SlotCount; i++)
                 _phase[i] = ((_phase[i] + shift) % _poolH + _poolH) % _poolH;
 
-            // Update prevY
             for (int i = 0; i < SlotCount; i++)
                 _prevY[i] = GetSlotY(i);
 
@@ -259,12 +239,6 @@ namespace FORGE
         private void InitSlots(int landedStop)
         {
             int stripLen = reel.StopCount;
-            // Initial phases so slot i starts at (1-i)*symbolHeight
-            // GetSlotY(i) = topY - (_scrollPx - phase[i]) % poolH = (1-i)*symbolHeight
-            // topY - (0 - phase[i]) % poolH = (1-i)*symbolHeight
-            // (0 - phase[i]) % poolH = topY - (1-i)*symbolHeight = i*symbolHeight
-            // (-phase[i]) % poolH = i*symbolHeight
-            // phase[i] = -i*symbolHeight mod poolH = (poolH - i*symbolHeight) % poolH
             for (int i = 0; i < SlotCount; i++)
             {
                 _phase[i]    = ((_poolH - i * symbolHeight) % _poolH + _poolH) % _poolH;

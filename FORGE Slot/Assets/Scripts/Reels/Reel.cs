@@ -12,32 +12,21 @@ namespace FORGE
         [Header("Spin Timing")]
         [Tooltip("Stagger delay before this reel starts spinning.")]
         [SerializeField] private float startDelay = 0f;
-
         [Tooltip("How long the reel spins at full speed before decelerating.")]
         [SerializeField] private float fullSpeedDuration = 0.6f;
-
         [Tooltip("How long the deceleration phase lasts.")]
         [SerializeField] private float decelDuration = 0.4f;
-
         [Tooltip("Must match ReelDisplay.symbolHeight.")]
         [SerializeField] private float symbolHeight = 120f;
 
         private ReelStripData _activeStrip;
-        private int _landedStopIndex = 0;
         private bool _isSpinning;
 
-        // 0 = full speed, 1 = fully stopped.
-        // ReelDisplay reads this to scale down its scroll speed.
         public float SpinProgress { get; private set; }
         public float DecelDuration => decelDuration;
-
-        // The exact _displayScrollPx value ReelDisplay should arrive at
-        // by the end of decel. Set before decel begins so ReelDisplay
-        // can lerp toward it, eliminating the snap.
-        public float TargetScrollPx { get; private set; }
         public bool HasTarget { get; private set; }
-
-        public int LandedStopIndex => _landedStopIndex;
+        public int TargetStopIndex { get; private set; }
+        public int LandedStopIndex { get; private set; }
         public bool IsSpinning => _isSpinning;
         public int StopCount => _activeStrip != null ? _activeStrip.StopCount : 22;
 
@@ -64,6 +53,19 @@ namespace FORGE
             StartCoroutine(SpinCoroutine(targetStop));
         }
 
+        /// <summary>
+        /// Called by ReelDisplay when its Hermite decel curve reaches t=1.
+        /// ReelDisplay owns the decel timing -- this fires OnLanded so other
+        /// systems (audio, UI) can react to the reel stopping.
+        /// </summary>
+        public void NotifyDisplayLanded()
+        {
+            LandedStopIndex = TargetStopIndex;
+            _isSpinning     = false;
+            HasTarget       = false;
+            OnLanded?.Invoke(this);
+        }
+
         private IEnumerator SpinCoroutine(int targetStop)
         {
             _isSpinning  = true;
@@ -82,28 +84,15 @@ namespace FORGE
                 yield return null;
             }
 
-            // Signal ReelDisplay to compute its target scroll position now,
-            // before decel begins, so it has the full decel window to arrive.
-            // ReelDisplay.ComputeTargetScroll() is called via the property setter.
-            TargetScrollPx = targetStop * symbolHeight;
-            HasTarget      = true;
+            // Signal ReelDisplay to begin decel. ReelDisplay computes
+            // _decelEndPx from TargetStopIndex and runs the Hermite curve.
+            // When it finishes it calls NotifyDisplayLanded() -- not us.
+            TargetStopIndex = targetStop;
+            HasTarget       = true;
 
-            // Deceleration phase
-            elapsed = 0f;
-            while (elapsed < decelDuration)
-            {
-                elapsed      += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / decelDuration);
-                SpinProgress  = t * t;  // ease-in: slows toward stop
+            // Wait for ReelDisplay to call NotifyDisplayLanded()
+            while (_isSpinning)
                 yield return null;
-            }
-
-            SpinProgress     = 0f;
-            _landedStopIndex = targetStop;
-            _isSpinning      = false;
-            HasTarget        = false;
-
-            OnLanded?.Invoke(this);
         }
     }
 }
