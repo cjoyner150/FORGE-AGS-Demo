@@ -60,7 +60,7 @@ namespace FORGE
         private void RefreshDisplay()
         {
             if (betLabel != null)
-                betLabel.text = $"{_betOptions[_currentIndex]}";
+                betLabel.text = $"Bet:\n{_betOptions[_currentIndex]}";
         }
     }
 }

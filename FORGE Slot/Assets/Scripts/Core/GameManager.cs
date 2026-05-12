@@ -17,11 +17,18 @@ namespace FORGE
         [SerializeField] private float startingCredits = 100f;
         [SerializeField] private float betSize = 1f;
 
+        [Header("Reel Timing")]
+        [Tooltip("How long all reels spin at full speed before the first reel decelerates.")]
+        [SerializeField] private float fullSpeedDuration = 0.6f;
+        [Tooltip("Delay between each reel starting to decelerate.")]
+        [SerializeField] private float staggerDelay = 0.15f;
+
         private SessionState _session;
         private bool _isSpinning;
         private int _landsReceived;
         private bool _winSequenceComplete;
 
+        public event Action OnSpinBegin;
         public event Action<SpinResult> OnSpinResolved;
         public event Action<SessionState> OnSessionUpdated;
         public event Action OnOutOfCredits;
@@ -61,7 +68,7 @@ namespace FORGE
 
         private void Start()
         {
-            Debug.Log("[GameManager] Start -- session initialised, credits: " + _session.Credits);
+            ForgeLog.Init();
             OnSessionUpdated?.Invoke(_session);
         }
 
@@ -84,13 +91,12 @@ namespace FORGE
             _isSpinning    = true;
             _landsReceived = 0;
 
-            // Clear any previous win display immediately
             if (winDisplay    != null) winDisplay.HideImmediate();
             if (creditDisplay != null) creditDisplay.ClearWin();
 
-            // Deduct bet right away
             _session.DeductBet(betSize);
             OnSessionUpdated?.Invoke(_session);
+            OnSpinBegin?.Invoke();
 
             // Step 1: surge check
             bool surgeTriggered = surge.CheckSurgeTrigger();
@@ -114,9 +120,7 @@ namespace FORGE
             var (payout, wildMult, wildCount, matched) =
                 PaylineEvaluator.Evaluate(s1, s2, s3, config, isSurge);
 
-            // Step 6: prepare displays then spin reels.
-            // StartSpin() must be called before reel.Spin() so _prevY is
-            // snapshotted before IsSpinning goes true and LateUpdate starts.
+            // Step 6: all reels start spinning simultaneously
             reelDisplays[0].StartSpin();
             reelDisplays[1].StartSpin();
             reelDisplays[2].StartSpin();
@@ -124,17 +128,43 @@ namespace FORGE
             reels[1].Spin(stop2);
             reels[2].Spin(stop3);
 
-            // Step 7: wait for all reels to land, with timeout
+            // Step 7: drive decel triggers via Time.time comparison.
+            // Guard on IsSpinning so BeginDecel is not called repeatedly
+            // after a reel has already landed.
+            float spinStartTime = Time.time;
+            float decel0Time = spinStartTime + fullSpeedDuration;
+            float decel1Time = decel0Time    + staggerDelay;
+            float decel2Time = decel1Time    + staggerDelay;
+
+            ForgeLog.Write($"[GameManager] SpinSequence start. now={spinStartTime:F3} " +
+                           $"decel0={decel0Time:F3} decel1={decel1Time:F3} decel2={decel2Time:F3}");
+            ForgeLog.Write($"[GameManager] reels[0]={reels[0].name} reels[1]={reels[1].name} reels[2]={reels[2].name}");
+            ForgeLog.Write($"[GameManager] reelDisplays[0]={reelDisplays[0].name} reelDisplays[1]={reelDisplays[1].name} reelDisplays[2]={reelDisplays[2].name}");
+
             float waited = 0f;
             const float timeout = 10f;
+
             while (_landsReceived < reels.Length && waited < timeout)
             {
+                float now = Time.time;
+
+                // Guard on IsSpinning -- prevents repeated BeginDecel calls
+                // after a reel has already landed and IsSpinning is false.
+                if (reels[0].IsSpinning && !reels[0].HasTarget && now >= decel0Time)
+                    reels[0].BeginDecel();
+
+                if (reels[1].IsSpinning && !reels[1].HasTarget && now >= decel1Time)
+                    reels[1].BeginDecel();
+
+                if (reels[2].IsSpinning && !reels[2].HasTarget && now >= decel2Time)
+                    reels[2].BeginDecel();
+
                 waited += Time.deltaTime;
                 yield return null;
             }
 
             if (waited >= timeout)
-                Debug.LogWarning($"[GameManager] TIMEOUT after {timeout}s. Lands received: {_landsReceived}/{reels.Length}");
+                ForgeLog.Write($"[GameManager] TIMEOUT after {timeout}s. Lands received: {_landsReceived}/{reels.Length}");
 
             // Step 8: surge bookkeeping
             if (isSurge) surge.ConsumeSurgeSpin();
@@ -152,7 +182,7 @@ namespace FORGE
             OnSpinResolved?.Invoke(result);
             OnSessionUpdated?.Invoke(_session);
 
-            // Step 11: wait for win presentation to finish before unlocking
+            // Step 11: wait for win presentation
             if (winDisplay != null)
             {
                 float winWait = 0f;
@@ -172,7 +202,7 @@ namespace FORGE
         private void HandleReelLanded(Reel reel)
         {
             _landsReceived++;
-            Debug.Log($"[GameManager] Reel landed: {reel.name} -- total landed: {_landsReceived}/{reels.Length}");
+            ForgeLog.Write($"[GameManager] Reel landed: {reel.name} Time={Time.time:F3} total={_landsReceived}/{reels.Length}");
         }
     }
 }

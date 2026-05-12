@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f3f5c6c895a1764a9891e77735e9525, type: 3}
   m_Name: SymbolSpriteLibrary
   m_EditorClassIdentifier: Assembly-CSharp::FORGE.SymbolSpriteLibrary
-  scrap: {fileID: 0}
-  shatter: {fileID: 0}
-  ingots: {fileID: 0}
-  plate: {fileID: 0}
-  molten: {fileID: 0}
-  wild: {fileID: 0}
+  scrap: {fileID: 21300000, guid: f3e9c5bd300151547a068b63ccb52928, type: 3}
+  shatter: {fileID: 21300000, guid: 4a09c907eeae7824fb2a6d3d366611cf, type: 3}
+  ingots: {fileID: 21300000, guid: 16f3a9ea869d17a4eb35b1fab2015e21, type: 3}
+  plate: {fileID: 21300000, guid: f49b34717cc0a6f458170b9cfffbae62, type: 3}
+  molten: {fileID: 21300000, guid: 4ddf6e5869fc1014b90da77c328be70f, type: 3}
+  wild: {fileID: 21300000, guid: 6630070456d23f945ad33a72217bcee3, type: 3}

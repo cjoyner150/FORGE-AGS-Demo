@@ -8,7 +8,8 @@ namespace FORGE
     {
         [SerializeField] private GameManager gameManager;
         [SerializeField] private Button button;
-        [SerializeField] private TMP_Text buttonLabel;
+        [SerializeField] private Sprite activeButtonSprite;
+        [SerializeField] private Sprite inactiveButtonSprite;
 
         private bool _gameOver;
 
@@ -19,8 +20,11 @@ namespace FORGE
 
             gameManager.OnOutOfCredits += () => {
                 _gameOver = true;
-                if (button      != null) button.interactable = false;
-                if (buttonLabel != null) buttonLabel.text    = "GAME OVER";
+                if (button      != null) 
+                { 
+                    button.interactable = false; 
+                    button.image.sprite = inactiveButtonSprite; 
+                }
             };
         }
 
@@ -29,7 +33,18 @@ namespace FORGE
         {
             if (_gameOver) return;
             if (button != null)
+            {
                 button.interactable = gameManager.CanSpin;
+
+                if (button.interactable)
+                {
+                    button.image.sprite = activeButtonSprite;
+                }
+                else
+                {
+                    button.image.sprite = inactiveButtonSprite;
+                }
+            }
         }
 
         private void OnSpinClicked()

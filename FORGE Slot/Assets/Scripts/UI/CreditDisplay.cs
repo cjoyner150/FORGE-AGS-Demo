@@ -11,9 +11,6 @@ namespace FORGE
         [Header("Labels")]
         [SerializeField] private TMP_Text creditsLabel;
         [SerializeField] private TMP_Text winAmountLabel;
-        [SerializeField] private TMP_Text rtpLabel;
-        [SerializeField] private TMP_Text hitFreqLabel;
-        [SerializeField] private TMP_Text spinCountLabel;
 
         [Header("Count-up timing")]
         [Tooltip("Seconds to count up to a win payout.")]
@@ -71,11 +68,6 @@ namespace FORGE
                 if (_creditsCoroutine != null) StopCoroutine(_creditsCoroutine);
                 if (isChanged) _creditsCoroutine = StartCoroutine(CountUpCredits(target, duration, swell));
             }
-
-            // Stats update immediately
-            if (rtpLabel       != null) rtpLabel.text       = $"RTP {s.RealizedRTP * 100f:F1}%";
-            if (hitFreqLabel   != null) hitFreqLabel.text   = $"Hit {s.HitFrequency * 100f:F1}%";
-            if (spinCountLabel != null) spinCountLabel.text = $"Spins {s.SpinCount}";
         }
 
         private void OnSpinResolved(SpinResult r)

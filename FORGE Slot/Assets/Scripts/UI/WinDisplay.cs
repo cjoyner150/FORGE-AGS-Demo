@@ -12,8 +12,7 @@ namespace FORGE
         [Header("Panel")]
         [SerializeField] private GameObject winPanel;
         [SerializeField] private TMP_Text multiplierLabel;
-        [SerializeField] private TMP_Text symbolLabel;
-        [SerializeField] private TMP_Text surgeWinLabel;
+        [SerializeField] private Animator winAnim;
 
         [Header("Timing")]
         [SerializeField] private float countUpDuration = 0.6f;
@@ -58,18 +57,7 @@ namespace FORGE
             }
 
             if (winPanel != null) winPanel.SetActive(true);
-
-            if (symbolLabel != null)
-            {
-                symbolLabel.text = r.WildCount == 3
-                    ? "3\u00d7 WILD"
-                    : r.MatchedSymbol.HasValue
-                        ? r.MatchedSymbol.Value.ToString().ToUpper()
-                        : "";
-            }
-
-            if (surgeWinLabel != null)
-                surgeWinLabel.gameObject.SetActive(r.IsSurge);
+            if (winAnim != null) winAnim.SetTrigger("PlayWinTrigger");
 
             // Count multiplier up with swell
             yield return StartCoroutine(LabelCountUp.Run(
